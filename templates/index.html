@@ -108,10 +108,11 @@
     }
   </style>
 
-  <!-- Firebase SDK compatível com browsers -->
+  <!-- Firebase SDK compatível -->
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
 </head>
+
 <body>
 
   <!-- Aviator embutido -->
@@ -153,11 +154,11 @@
     const tendenciaEl = document.getElementById('tendencia');
     const fechar = document.getElementById('fecharPainel');
 
-    // 📡 Atualiza o botão com o valor mais recente
+    // 📡 Atualiza o botão com o último resultado
     db.collection("resultados").doc("ultimo").onSnapshot(doc => {
       if (doc.exists) {
         const data = doc.data();
-        const valor = parseFloat(data.valor);
+        const valor = parseFloat(data.valor.toString().replace(/"/g, '').trim());
         botao.innerText = `📈 Última leitura: ${valor.toFixed(2)}x`;
         botao.style.background = valor >= 2 ? "#4CAF50" : "#F44336";
       } else {
@@ -166,7 +167,7 @@
       }
     });
 
-    // 🧭 Clique do botão → abre painel e mostra o histórico
+    // 🧭 Ao clicar → abre painel e mostra histórico
     botao.onclick = async () => {
       painel.classList.toggle('aberto');
       tabela.innerHTML = "<tr><th>#</th><th>Valor</th><th>Hora</th></tr>";
@@ -180,14 +181,16 @@
 
       docs.forEach((doc, i) => {
         const d = doc.data();
-        const val = parseFloat(d.valor);
+        const val = parseFloat(d.valor.toString().replace(/"/g, '').trim());
         const hora = d.hora || "--";
-        soma += val;
-        cont++;
-        if (val >= 2) acima2++;
+        if (!isNaN(val)) {
+          soma += val;
+          cont++;
+          if (val >= 2) acima2++;
+        }
 
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${i + 1}</td><td>${val.toFixed(2)}x</td><td>${hora}</td>`;
+        tr.innerHTML = `<td>${i + 1}</td><td>${isNaN(val) ? '-' : val.toFixed(2)}x</td><td>${hora}</td>`;
         tabela.appendChild(tr);
       });
 
