@@ -11,6 +11,8 @@
       height: 100%;
       background: #000;
       overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
     }
 
     iframe {
@@ -19,6 +21,7 @@
       border: none;
     }
 
+    /* Botão flutuante */
     #botaoFlutuante {
       position: fixed;
       bottom: 20px;
@@ -40,44 +43,160 @@
       background-color: #0097a7;
       transform: scale(1.05);
     }
+
+    /* Painel lateral */
+    #painel {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100%;
+      background-color: #1a1a1a;
+      box-shadow: -4px 0 10px rgba(0,0,0,0.5);
+      transition: right 0.4s ease-in-out;
+      padding: 20px;
+      overflow-y: auto;
+      z-index: 10000;
+    }
+
+    #painel.aberto {
+      right: 0;
+    }
+
+    #painel h2 {
+      text-align: center;
+      color: #00bcd4;
+      margin-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border-bottom: 1px solid #333;
+      padding: 8px;
+      text-align: center;
+    }
+
+    tr:nth-child(even) {
+      background: #222;
+    }
+
+    #media {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 18px;
+      color: #00e676;
+    }
+
+    /* Fechar painel */
+    #fecharPainel {
+      background: #ff1744;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
   </style>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"></script>
 </head>
 
 <body>
+
   <!-- JOGO AO VIVO -->
   <iframe src="https://big.bet.br/casino/game/3496406?provider=Spribe&from=%2Fcasino"></iframe>
 
   <!-- BOTÃO FLUTUANTE -->
   <button id="botaoFlutuante">📊 Aguardando leitura...</button>
 
+  <!-- PAINEL LATERAL -->
+  <div id="painel">
+    <button id="fecharPainel">Fechar ✖</button>
+    <h2>Últimos Resultados</h2>
+    <table id="tabela">
+      <tr><th>#</th><th>Valor</th><th>Hora</th></tr>
+    </table>
+    <p id="media">Média: --</p>
+  </div>
+
   <script>
-    // Firebase config
+    // 🔥 Configuração do Firebase
     const firebaseConfig = {
-  apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
-  authDomain: "robo-aviator2025.firebaseapp.com",
-  projectId: "robo-aviator2025",
-  storageBucket: "robo-aviator2025.firebasestorage.app",
-  messagingSenderId: "303072216239",
-  appId: "1:303072216239:web:d6e659c5dd49be14e7005a",
-  measurementId: "G-094LT3104Y"
-};
+      apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
+      authDomain: "robo-aviator2025.firebaseapp.com",
+      projectId: "robo-aviator2025",
+      storageBucket: "robo-aviator2025.firebasestorage.app",
+      messagingSenderId: "303072216239",
+      appId: "1:303072216239:web:d6e659c5dd49be14e7005a",
+      measurementId: "G-094LT3104Y"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Atualização em tempo real
     const botao = document.getElementById('botaoFlutuante');
-    db.collection("leituras").orderBy("timestamp", "desc").limit(1)
+    const painel = document.getElementById('painel');
+    const fechar = document.getElementById('fecharPainel');
+    const tabela = document.getElementById('tabela');
+    const mediaEl = document.getElementById('media');
+
+    // 🔁 Atualiza painel
+    async function atualizarPainel() {
+      const snapshot = await db.collection("resultados").orderBy("hora", "desc").limit(15).get();
+      tabela.innerHTML = "<tr><th>#</th><th>Valor</th><th>Hora</th></tr>";
+
+      let soma = 0;
+      let cont = 0;
+
+      snapshot.forEach((doc, i) => {
+        const data = doc.data();
+        const valor = parseFloat(data.valor);
+        const hora = data.hora || "--";
+        soma += valor;
+        cont++;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${i + 1}</td><td>${valor.toFixed(2)}x</td><td>${hora}</td>`;
+        tabela.appendChild(tr);
+      });
+
+      if (cont > 0) {
+        const media = (soma / cont).toFixed(2);
+        mediaEl.innerText = `📈 Média das últimas: ${media}x`;
+      } else {
+        mediaEl.innerText = "Sem dados recentes.";
+      }
+    }
+
+    // 📡 Atualiza botão em tempo real
+    db.collection("resultados").orderBy("hora", "desc").limit(1)
       .onSnapshot(snapshot => {
         snapshot.forEach(doc => {
           const data = doc.data();
-          botao.innerText = `📈 Última leitura: ${data.valor}x`;
-          botao.style.background = data.valor > 2 ? "#4CAF50" : "#F44336";
+          const valor = parseFloat(data.valor);
+          botao.innerText = `📈 Última leitura: ${valor.toFixed(2)}x`;
+          botao.style.background = valor >= 2 ? "#4CAF50" : "#F44336";
         });
       });
+
+    // 🧭 Ações do painel
+    botao.onclick = () => {
+      painel.classList.toggle("aberto");
+      atualizarPainel();
+    };
+    fechar.onclick = () => painel.classList.remove("aberto");
+
+    // Atualiza a cada 5 segundos
+    setInterval(atualizarPainel, 5000);
   </script>
+
 </body>
 </html>
