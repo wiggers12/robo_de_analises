@@ -2,3 +2,5 @@ flask
 pytesseract
 opencv-python-headless
 numpy
+mss
+firebase-admin
