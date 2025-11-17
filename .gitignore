@@ -1,4 +1,3 @@
 firebase-key.json
-venv/
+leitor_tela.py
 __pycache__/
-*.pyc
