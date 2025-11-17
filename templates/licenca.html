@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ativação - Robô de Análises</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark">
+<div class="container center">
+    <h1>🔐 Robô de Análises</h1>
+    <p>Insira sua chave de ativação</p>
+    <input type="text" id="keyInput" placeholder="Digite sua chave" />
+    <button onclick="ativar()">Ativar</button>
+    <p id="msg"></p>
+</div>
+
+<script>
+function ativar() {
+    const chave = document.getElementById("keyInput").value.trim();
+    if (chave === "ROBO123") {
+        localStorage.setItem("ativado", "true");
+        window.location.href = "/painel";
+    } else {
+        document.getElementById("msg").textContent = "❌ Chave inválida!";
+    }
+}
+
+if (localStorage.getItem("ativado") === "true") {
+    window.location.href = "/painel";
+}
+</script>
+</body>
+</html>

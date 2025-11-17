@@ -1,0 +1,12 @@
+{
+  "name": "Robô de Análises",
+  "short_name": "Robô",
+  "start_url": "/painel",
+  "display": "standalone",
+  "background_color": "#0e0e0e",
+  "theme_color": "#00c9ff",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

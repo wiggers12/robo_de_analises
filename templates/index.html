@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robô de Análises</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/chart.min.js"></script>
+</head>
+<body class="dark">
+<div class="container">
+    <h1>🤖 Robô de Análises</h1>
+
+    <div class="card">
+        <p>Envie um print ou imagem contendo o número para leitura:</p>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="enviarImagem()">📷 Ler número</button>
+        <p id="resultado">Aguardando leitura...</p>
+    </div>
+
+    <div class="card">
+        <h2>📊 Histórico e Análise</h2>
+        <canvas id="grafico" height="150"></canvas>
+        <ul id="historico"></ul>
+    </div>
+
+    <button class="btn-small" onclick="limpar()">🧹 Limpar histórico</button>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/service-worker.js');
+}
+</script>
+</body>
+</html>
