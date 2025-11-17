@@ -115,10 +115,13 @@
 
 <body>
 
+  <!-- Aviator embutido -->
   <iframe src="https://big.bet.br/casino/game/3496406?provider=Spribe&from=%2Fcasino"></iframe>
 
+  <!-- Botão flutuante -->
   <button id="botaoFlutuante">📊 Aguardando leitura...</button>
 
+  <!-- Painel lateral -->
   <div id="painel">
     <button id="fecharPainel">Fechar ✖</button>
     <h2>Últimos Resultados</h2>
@@ -130,7 +133,7 @@
   </div>
 
   <script>
-    // 🔥 Firebase Config
+    // 🔥 Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
       authDomain: "robo-aviator2025.firebaseapp.com",
@@ -146,12 +149,12 @@
 
     const botao = document.getElementById('botaoFlutuante');
     const painel = document.getElementById('painel');
-    const fechar = document.getElementById('fecharPainel');
     const tabela = document.getElementById('tabela');
     const mediaEl = document.getElementById('media');
     const tendenciaEl = document.getElementById('tendencia');
+    const fechar = document.getElementById('fecharPainel');
 
-    // 📡 Atualiza botão com o último resultado (doc fixo)
+    // 📡 Atualiza o botão com o valor mais recente
     db.collection("resultados").doc("ultimo").onSnapshot(doc => {
       if (doc.exists) {
         const data = doc.data();
@@ -164,12 +167,16 @@
       }
     });
 
-    // 🧭 Ao clicar, abre painel e mostra histórico + média + tendência
+    // 🧭 Clique do botão → abre painel e mostra o histórico
     botao.onclick = async () => {
       painel.classList.toggle('aberto');
       tabela.innerHTML = "<tr><th>#</th><th>Valor</th><th>Hora</th></tr>";
 
-      const docs = await db.collection("historico").orderBy("hora", "desc").limit(15).get();
+      const docs = await db.collection("historico")
+        .orderBy("timestamp", "desc")
+        .limit(15)
+        .get();
+
       let soma = 0, cont = 0, acima2 = 0;
 
       docs.forEach((doc, i) => {
@@ -189,9 +196,10 @@
         const media = (soma / cont).toFixed(2);
         mediaEl.innerText = `📊 Média das últimas ${cont}: ${media}x`;
         const tendencia = acima2 / cont;
-        tendenciaEl.innerText = tendencia > 0.6 ? "🔮 Tendência: Alta (boas entradas)"
-                          : tendencia > 0.3 ? "⚖️ Tendência neutra"
-                          : "⚠️ Tendência de queda";
+        tendenciaEl.innerText =
+          tendencia > 0.6 ? "🔮 Tendência: Alta (boas entradas)" :
+          tendencia > 0.3 ? "⚖️ Tendência neutra" :
+          "⚠️ Tendência de queda";
       } else {
         mediaEl.innerText = "Sem dados recentes.";
         tendenciaEl.innerText = "";
