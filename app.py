@@ -1,39 +1,81 @@
-from flask import Flask, render_template, request, jsonify
-import pytesseract
 import cv2
 import numpy as np
+import mss
+import pytesseract
+import time
+from datetime import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-app = Flask(__name__)
+# 🔧 Caminho do executável Tesseract
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-# Caminho do Tesseract (Render já possui por padrão)
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+# 🔥 Configurar Firebase (baixe seu arquivo JSON de credenciais no console Firebase)
+cred = credentials.Certificate("firebase-key.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
-@app.route('/')
-def licenca():
-    return render_template('licenca.html')
+# 📸 Função de captura
+def capturar_texto(regiao):
+    with mss.mss() as sct:
+        imagem = np.array(sct.grab(regiao))
+        cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+        _, binaria = cv2.threshold(cinza, 120, 255, cv2.THRESH_BINARY)
+        texto = pytesseract.image_to_string(binaria, lang='eng')
+        return texto.strip(), binaria
 
-@app.route('/painel')
-def painel():
-    return render_template('index.html')
+# 📍 Selecionar área uma vez
+def selecionar_area():
+    with mss.mss() as sct:
+        monitor = sct.monitors[1]
+        tela = np.array(sct.grab(monitor))
+        r = cv2.selectROI("Selecione a área para leitura", tela, showCrosshair=True)
+        cv2.destroyWindow("Selecione a área para leitura")
+        x, y, w, h = map(int, r)
+        return {"top": y, "left": x, "width": w, "height": h}
 
-@app.route('/ocr', methods=['POST'])
-def ocr():
-    if 'image' not in request.files:
-        return jsonify({"error": "Nenhuma imagem enviada."}), 400
+def main():
+    print("🤖 Robô de leitura e envio ao Firebase iniciado!")
+    regiao = selecionar_area()
+    ultimo_resultado = ""
+    lendo = False
+    rodada = 1
 
-    file = request.files['image']
-    npimg = np.frombuffer(file.read(), np.uint8)
-    img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, binaria = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)
-    texto = pytesseract.image_to_string(binaria, lang='eng')
-    numeros = [s for s in texto.split() if s.replace('.', '', 1).isdigit()]
+    while True:
+        texto, imagem = capturar_texto(regiao)
+        numeros = ''.join([c for c in texto if c.isdigit() or c == '.'])
 
-    if numeros:
-        numero = float(numeros[-1])
-        return jsonify({"resultado": numero})
-    else:
-        return jsonify({"resultado": None})
+        if numeros:
+            lendo = True
+            print(f"Lendo: {numeros}")
+            ultimo_resultado = numeros
+        elif lendo:
+            # Quando parar de ler, envia o último número
+            print(f"✅ Rodada {rodada} finalizada! Resultado: {ultimo_resultado}")
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+            # Salva no Firebase
+            db.collection("resultados").document("ultimo").set({
+                "valor": ultimo_resultado,
+                "hora": datetime.now().strftime("%H:%M:%S"),
+                "data": datetime.now().strftime("%Y-%m-%d")
+            })
+
+            # Histórico opcional
+            db.collection("historico").add({
+                "rodada": rodada,
+                "resultado": ultimo_resultado,
+                "timestamp": datetime.now()
+            })
+
+            lendo = False
+            rodada += 1
+            time.sleep(2)
+
+        cv2.imshow("Leitura ao vivo", imagem)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()

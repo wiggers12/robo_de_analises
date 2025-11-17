@@ -3,36 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Robô de Análises</title>
-<link rel="manifest" href="/static/manifest.json">
-<link rel="stylesheet" href="/static/style.css">
-<script src="/static/chart.min.js"></script>
+<title>Aviator + Robô de Análises</title>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+  }
+  iframe {
+    width: 100vw;
+    height: 100vh;
+    border: none;
+  }
+  .botao-flutuante {
+    position: fixed;
+    bottom: 15px;
+    left: 15px;
+    background: #222;
+    color: #00ff88;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
+    z-index: 9999;
+    font-family: Arial, sans-serif;
+  }
+</style>
 </head>
-<body class="dark">
-<div class="container">
-    <h1>🤖 Robô de Análises</h1>
+<body>
+  <iframe src="https://big.bet.br/casino/game/3496406?provider=Spribe&from=%2Fcasino"></iframe>
 
-    <div class="card">
-        <p>Envie um print ou imagem contendo o número para leitura:</p>
-        <input type="file" id="imageInput" accept="image/*">
-        <button onclick="enviarImagem()">📷 Ler número</button>
-        <p id="resultado">Aguardando leitura...</p>
-    </div>
+  <div id="resultado" class="botao-flutuante">Carregando...</div>
 
-    <div class="card">
-        <h2>📊 Histórico e Análise</h2>
-        <canvas id="grafico" height="150"></canvas>
-        <ul id="historico"></ul>
-    </div>
+  <script>
+    const firebaseConfig = {
+  apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
+  authDomain: "robo-aviator2025.firebaseapp.com",
+  projectId: "robo-aviator2025",
+  storageBucket: "robo-aviator2025.firebasestorage.app",
+  messagingSenderId: "303072216239",
+  appId: "1:303072216239:web:d6e659c5dd49be14e7005a",
+  measurementId: "G-094LT3104Y"
+};
 
-    <button class="btn-small" onclick="limpar()">🧹 Limpar histórico</button>
-</div>
 
-<script src="/static/script.js"></script>
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/static/service-worker.js');
-}
-</script>
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    db.collection("resultados").doc("ultimo").onSnapshot((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        document.getElementById("resultado").innerText = `Último: ${data.valor}x`;
+      }
+    });
+  </script>
 </body>
 </html>
