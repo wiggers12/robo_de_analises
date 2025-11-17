@@ -11,6 +11,7 @@ from firebase_admin import credentials, firestore
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # 🔥 Configurar Firebase (baixe seu arquivo JSON de credenciais no console Firebase)
+cred = credentials.Certificate("firebase-key.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
