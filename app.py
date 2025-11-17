@@ -1,83 +1,57 @@
-import cv2
-import numpy as np
-import mss
-import pytesseract
-import time
-from datetime import datetime
+from flask import Flask, render_template_string
 import firebase_admin
 from firebase_admin import credentials, firestore
+import os, json
 
-# 🔧 Caminho do executável Tesseract
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+app = Flask(__name__)
 
-# 🔥 Configurar Firebase (baixe seu arquivo JSON de credenciais no console Firebase)
-import json, os
+# 🔥 Conexão Firebase
 firebase_key = os.environ.get("FIREBASE_KEY")
 cred = credentials.Certificate(json.loads(firebase_key))
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# 📸 Função de captura
-def capturar_texto(regiao):
-    with mss.mss() as sct:
-        imagem = np.array(sct.grab(regiao))
-        cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-        _, binaria = cv2.threshold(cinza, 120, 255, cv2.THRESH_BINARY)
-        texto = pytesseract.image_to_string(binaria, lang='eng')
-        return texto.strip(), binaria
+# HTML simples
+HTML = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Painel de Resultados</title>
+<style>
+  body { background:#0e0e0e; color:white; font-family:Arial; text-align:center; }
+  h1 { color:#ff004c; }
+  table { margin:auto; border-collapse:collapse; width:80%; background:#1a1a1a; }
+  th,td { border:1px solid #333; padding:8px; }
+  tr:nth-child(even){ background:#222; }
+</style>
+</head>
+<body>
+  <h1>📊 Painel de Resultados</h1>
+  <h2>Último resultado: {{ultimo}}</h2>
+  <table>
+    <tr><th>Rodada</th><th>Resultado</th><th>Hora</th></tr>
+    {% for h in historico %}
+      <tr><td>{{h.rodada}}</td><td>{{h.resultado}}</td><td>{{h.hora}}</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
+"""
 
-# 📍 Selecionar área uma vez
-def selecionar_area():
-    with mss.mss() as sct:
-        monitor = sct.monitors[1]
-        tela = np.array(sct.grab(monitor))
-        r = cv2.selectROI("Selecione a área para leitura", tela, showCrosshair=True)
-        cv2.destroyWindow("Selecione a área para leitura")
-        x, y, w, h = map(int, r)
-        return {"top": y, "left": x, "width": w, "height": h}
+@app.route('/')
+def index():
+    ultimo_doc = db.collection("resultados").document("ultimo").get()
+    ultimo = ultimo_doc.to_dict().get("valor", "—") if ultimo_doc.exists else "—"
 
-def main():
-    print("🤖 Robô de leitura e envio ao Firebase iniciado!")
-    regiao = selecionar_area()
-    ultimo_resultado = ""
-    lendo = False
-    rodada = 1
+    historico_docs = db.collection("historico").order_by("timestamp", direction="DESCENDING").limit(15).stream()
+    historico = [{
+        "rodada": h.to_dict().get("rodada"),
+        "resultado": h.to_dict().get("resultado"),
+        "hora": h.to_dict().get("timestamp").strftime("%H:%M:%S") if h.to_dict().get("timestamp") else ""
+    } for h in historico_docs]
 
-    while True:
-        texto, imagem = capturar_texto(regiao)
-        numeros = ''.join([c for c in texto if c.isdigit() or c == '.'])
-
-        if numeros:
-            lendo = True
-            print(f"Lendo: {numeros}")
-            ultimo_resultado = numeros
-        elif lendo:
-            # Quando parar de ler, envia o último número
-            print(f"✅ Rodada {rodada} finalizada! Resultado: {ultimo_resultado}")
-
-            # Salva no Firebase
-            db.collection("resultados").document("ultimo").set({
-                "valor": ultimo_resultado,
-                "hora": datetime.now().strftime("%H:%M:%S"),
-                "data": datetime.now().strftime("%Y-%m-%d")
-            })
-
-            # Histórico opcional
-            db.collection("historico").add({
-                "rodada": rodada,
-                "resultado": ultimo_resultado,
-                "timestamp": datetime.now()
-            })
-
-            lendo = False
-            rodada += 1
-            time.sleep(2)
-
-        cv2.imshow("Leitura ao vivo", imagem)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cv2.destroyAllWindows()
+    return render_template_string(HTML, ultimo=ultimo, historico=historico)
 
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=10000)
