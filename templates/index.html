@@ -21,7 +21,6 @@
       border: none;
     }
 
-    /* Botão flutuante */
     #botaoFlutuante {
       position: fixed;
       bottom: 20px;
@@ -44,7 +43,6 @@
       transform: scale(1.05);
     }
 
-    /* Painel lateral */
     #painel {
       position: fixed;
       top: 0;
@@ -91,7 +89,6 @@
       color: #00e676;
     }
 
-    /* Fechar painel */
     #fecharPainel {
       background: #ff1744;
       border: none;
@@ -102,6 +99,13 @@
       cursor: pointer;
       margin-bottom: 10px;
     }
+
+    #tendencia {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #ffeb3b;
+    }
   </style>
 
   <!-- Firebase SDK -->
@@ -111,13 +115,10 @@
 
 <body>
 
-  <!-- JOGO AO VIVO -->
   <iframe src="https://big.bet.br/casino/game/3496406?provider=Spribe&from=%2Fcasino"></iframe>
 
-  <!-- BOTÃO FLUTUANTE -->
   <button id="botaoFlutuante">📊 Aguardando leitura...</button>
 
-  <!-- PAINEL LATERAL -->
   <div id="painel">
     <button id="fecharPainel">Fechar ✖</button>
     <h2>Últimos Resultados</h2>
@@ -125,10 +126,11 @@
       <tr><th>#</th><th>Valor</th><th>Hora</th></tr>
     </table>
     <p id="media">Média: --</p>
+    <p id="tendencia"></p>
   </div>
 
   <script>
-    // 🔥 Configuração do Firebase
+    // 🔥 Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
       authDomain: "robo-aviator2025.firebaseapp.com",
@@ -147,56 +149,56 @@
     const fechar = document.getElementById('fecharPainel');
     const tabela = document.getElementById('tabela');
     const mediaEl = document.getElementById('media');
+    const tendenciaEl = document.getElementById('tendencia');
 
-    // 🔁 Atualiza painel
-    async function atualizarPainel() {
-      const snapshot = await db.collection("resultados").orderBy("hora", "desc").limit(15).get();
-      tabela.innerHTML = "<tr><th>#</th><th>Valor</th><th>Hora</th></tr>";
-
-      let soma = 0;
-      let cont = 0;
-
-      snapshot.forEach((doc, i) => {
+    // 📡 Atualiza botão com o último resultado (doc fixo)
+    db.collection("resultados").doc("ultimo").onSnapshot(doc => {
+      if (doc.exists) {
         const data = doc.data();
         const valor = parseFloat(data.valor);
-        const hora = data.hora || "--";
-        soma += valor;
+        botao.innerText = `📈 Última leitura: ${valor.toFixed(2)}x`;
+        botao.style.background = valor >= 2 ? "#4CAF50" : "#F44336";
+      } else {
+        botao.innerText = "❌ Nenhum dado encontrado";
+        botao.style.background = "#FF5722";
+      }
+    });
+
+    // 🧭 Ao clicar, abre painel e mostra histórico + média + tendência
+    botao.onclick = async () => {
+      painel.classList.toggle('aberto');
+      tabela.innerHTML = "<tr><th>#</th><th>Valor</th><th>Hora</th></tr>";
+
+      const docs = await db.collection("historico").orderBy("hora", "desc").limit(15).get();
+      let soma = 0, cont = 0, acima2 = 0;
+
+      docs.forEach((doc, i) => {
+        const d = doc.data();
+        const val = parseFloat(d.valor);
+        const hora = d.hora || "--";
+        soma += val;
         cont++;
+        if (val >= 2) acima2++;
 
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${i + 1}</td><td>${valor.toFixed(2)}x</td><td>${hora}</td>`;
+        tr.innerHTML = `<td>${i + 1}</td><td>${val.toFixed(2)}x</td><td>${hora}</td>`;
         tabela.appendChild(tr);
       });
 
       if (cont > 0) {
         const media = (soma / cont).toFixed(2);
-        mediaEl.innerText = `📈 Média das últimas: ${media}x`;
+        mediaEl.innerText = `📊 Média das últimas ${cont}: ${media}x`;
+        const tendencia = acima2 / cont;
+        tendenciaEl.innerText = tendencia > 0.6 ? "🔮 Tendência: Alta (boas entradas)"
+                          : tendencia > 0.3 ? "⚖️ Tendência neutra"
+                          : "⚠️ Tendência de queda";
       } else {
         mediaEl.innerText = "Sem dados recentes.";
+        tendenciaEl.innerText = "";
       }
-    }
-
-    // 📡 Atualiza botão em tempo real
-    db.collection("resultados").orderBy("hora", "desc").limit(1)
-      .onSnapshot(snapshot => {
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const valor = parseFloat(data.valor);
-          botao.innerText = `📈 Última leitura: ${valor.toFixed(2)}x`;
-          botao.style.background = valor >= 2 ? "#4CAF50" : "#F44336";
-        });
-      });
-
-    // 🧭 Ações do painel
-    botao.onclick = () => {
-      painel.classList.toggle("aberto");
-      atualizarPainel();
     };
+
     fechar.onclick = () => painel.classList.remove("aberto");
-
-    // Atualiza a cada 5 segundos
-    setInterval(atualizarPainel, 5000);
   </script>
-
 </body>
 </html>
