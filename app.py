@@ -6,7 +6,7 @@ app = Flask(__name__)
 # ==========================
 # CONFIG WHATSAPP API
 # ==========================
-WHATSAPP_TOKEN = "EAALl2GJDMpMBPZCrN3mf5EbxTnZBJyz0ReWo7oqv5KrvhPE6oCtJYFG4B9cALDiZCXECZB54oEDGKheZAcruRpMB1QhSIvbKytiMO1aZCCY55ls2H4Rf1DXrAgNSeLnueewrLFe3rEn015mTOt3lcIZCgrcdQeVqSYt7oiaIpk8WWL9anyxfKNWLiRRqcUoJos1iNcMOSwsrHGs87wQ1Sn7gNH9xfqgrsiunJrqkgfE"
+WHATSAPP_TOKEN = "EAALl2GJDMpMBPwkTtt8LlMPSqq8waWPP1euMaxqofVpzkaSp7YyUIlZBhbkgZAm2Jw1yTwdOjnjsStQZAbzxSyrKbyfPsulqIRSZCZBU0aCRxAdGnXlir2QuTJVbH4LBfJcmho0lmqyldmYJqynZCNZBj89in23O9hCPMZBSDMmDDFqdsWZATltZA3iZAn39r1amwOqAwZDZD"
 PHONE_ID = "848088375057819"
 VERIFY_TOKEN = "meu_token_webhook"
 
