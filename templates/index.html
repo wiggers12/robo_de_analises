@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Robô Aviator IA v9.4-Final</title>
+<title>Robô Aviator IA v9.5-Final</title>
 
 <!-- Firebase + TensorFlow.js + Chart.js -->
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-
 <style>
 html,body{
   margin:0;padding:0;height:100%;
@@ -112,7 +111,7 @@ footer{
 #chatInput{flex:1;background:transparent;border:none;padding:10px;color:white;outline:none;}
 #chatSend{background:#00e5ff;border:none;color:#000;padding:8px 15px;cursor:pointer;font-weight:bold;}
 
-/* ==== EFEITOS VISUAIS PARA PREVISÕES IA ==== */
+/* Previsão IA */
 .previsao-card {
   border-radius: 10px;
   color: #fff;
@@ -133,11 +132,62 @@ footer{
   50% { box-shadow: 0 0 18px rgba(255,255,255,0.9); }
   100% { box-shadow: 0 0 6px rgba(255,255,255,0.3); }
 }
+
+/* 💡 Dicas da IA */
+#dicasWindow{
+  display:none;
+  position:fixed;
+  bottom:90px;right:20px;
+  width:340px;height:420px;
+  background:rgba(0,10,20,0.95);
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,229,255,0.4);
+  color:#fff;
+  overflow:hidden;
+  flex-direction:column;
+  z-index:20005;
+}
+#dicasHeader{
+  background:#00bcd4;
+  color:#000;
+  padding:10px;
+  font-weight:bold;
+  text-align:center;
+  position:relative;
+  font-size:15px;
+}
+#closeDicas{
+  position:absolute;
+  right:10px;top:6px;
+  cursor:pointer;
+  font-weight:bold;
+}
+#dicasContent{
+  padding:10px;
+  font-size:14px;
+  overflow-y:auto;
+  height:calc(100% - 40px);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.dicaCard{
+  background:rgba(0,229,255,0.08);
+  border-left:4px solid #00e5ff;
+  border-radius:8px;
+  padding:8px 10px;
+  line-height:1.4;
+  box-shadow:0 0 8px rgba(0,229,255,0.2);
+  animation:fadeIn 0.4s ease;
+}
+@keyframes fadeIn{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
+}
 </style>
 </head>
-
 <body>
-<iframe src="https://big.bet.br/casino/game/3496406?provider=Spribe"></iframe>
+<iframe src="https://rn72q.com/main/inicio?pid=575973404"></iframe>
 
 <div id="painel">
   <button id="btnFecharPainel">❌</button>
@@ -180,11 +230,29 @@ footer{
   </div>
 </div>
 
+<!-- 💡 DICAS DA IA -->
+<div id="dicasWindow">
+  <div id="dicasHeader">
+    💡 Dicas da IA
+    <span id="closeDicas">✖</span>
+  </div>
+  <div id="dicasContent"></div>
+</div>
+
 <script>
-const firebaseConfig={apiKey:"AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",authDomain:"robo-aviator2025.firebaseapp.com",projectId:"robo-aviator2025",storageBucket:"robo-aviator2025.firebasestorage.app",messagingSenderId:"303072216239",appId:"1:303072216239:web:d6e659c5dd49be14e7005a"};
+/* === CONFIGURAÇÃO FIREBASE === */
+const firebaseConfig={
+  apiKey:"AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
+  authDomain:"robo-aviator2025.firebaseapp.com",
+  projectId:"robo-aviator2025",
+  storageBucket:"robo-aviator2025.firebasestorage.app",
+  messagingSenderId:"303072216239",
+  appId:"1:303072216239:web:d6e659c5dd49be14e7005a"
+};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
+/* === VARIÁVEIS GLOBAIS === */
 const painel=document.getElementById("painel"),
 fechar=document.getElementById("btnFecharPainel"),
 cardsContainer=document.getElementById("cardsContainer"),
@@ -193,26 +261,49 @@ iaText=document.getElementById("iaProbText");
 let graficoIA=null,graficoVelas=null,historicoCache=[],unsubscribe=null;
 let somAlerta=new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_1b7c5c241d.mp3?filename=notification-1-126517.mp3");
 
+/* === FIREBASE HISTÓRICO === */
 function conectarFirebase(){
- if(unsubscribe)unsubscribe();
- unsubscribe=db.collection("historico").orderBy("timestamp","desc").limit(50).onSnapshot(snap=>{
-  const valores=[];cardsContainer.innerHTML="";
-  snap.forEach(doc=>{
-   const d=doc.data(),v=parseFloat(d.valor||d.resultado||"0");
-   const c=v>=10.01?"alta":v>=2.01?"media":"baixa";
-   const el=document.createElement("div");
-   el.className=`card ${c}`;
-   el.innerHTML=`<div>${v.toFixed(2)}x</div>`;
-   cardsContainer.appendChild(el);
-   valores.unshift(v);
+  if(unsubscribe) unsubscribe();
+  unsubscribe = db.collection("historico").orderBy("timestamp","desc").limit(50).onSnapshot(snap => {
+
+    const novos = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const v = parseFloat(d.valor || d.resultado || "0");
+      novos.unshift(v);
+    });
+
+    // 🔥 Mantém histórico anterior e adiciona apenas os novos valores
+    if (historicoCache.length > 0) {
+      const ultimoAntigo = historicoCache[historicoCache.length - 1];
+      const ultimoNovo = novos[novos.length - 1];
+      if (ultimoAntigo !== ultimoNovo) {
+        historicoCache = [...historicoCache, ...novos];
+      }
+    } else {
+      historicoCache = novos;
+    }
+
+    // Atualiza visual dos cards (máximo 50 últimos)
+    cardsContainer.innerHTML = "";
+    historicoCache.slice(-50).forEach(v => {
+      const c = v >= 10.01 ? "alta" : v >= 2.01 ? "media" : "baixa";
+      const el = document.createElement("div");
+      el.className = `card ${c}`;
+      el.innerHTML = `<div>${v.toFixed(2)}x</div>`;
+      cardsContainer.appendChild(el);
+    });
+
+    // Atualiza IA e gráficos
+    if (historicoCache.length > 0) {
+      atualizarPainelIA(historicoCache);
+      treinarIA(historicoCache);
+    }
   });
-  historicoCache=valores;
-  if(valores.length>0){atualizarPainelIA(valores);treinarIA(valores);}
- });
 }
 conectarFirebase();
 
-/* Painel e rodapé */
+/* === CONTROLE PAINEL / RODAPÉ === */
 const btnResultados=document.getElementById("btnResultados");
 const btnIA=document.getElementById("btnIA");
 const btnChat=document.getElementById("btnChat");
@@ -223,6 +314,7 @@ btnChat.onclick=()=>{document.getElementById("chatWindow").style.display="flex";
 btnConfig.onclick=()=>alert("⚙️ Configurações em desenvolvimento.");
 fechar.onclick=()=>painel.classList.remove("aberto");
 
+/* === PAINEL IA === */
 function atualizarPainelIA(v){
  if(v.length<3)return;
  const media=(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2);
@@ -236,7 +328,7 @@ function atualizarPainelIA(v){
  atualizarGraficoVelas(v);
 }
 
-/* gráfico velas */
+/* === GRÁFICO VELAS === */
 function atualizarGraficoVelas(valores){
  const ctx=document.getElementById("graficoVelas").getContext("2d");
  if(graficoVelas)graficoVelas.destroy();
@@ -245,7 +337,7 @@ function atualizarGraficoVelas(valores){
  graficoVelas=new Chart(ctx,{type:"bar",data:{labels:ultimos.map((_,i)=>i+1),datasets:[{data:ultimos,backgroundColor:cores}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
 }
 
-/* ===== IA AVANÇADA v9.4 ===== */
+/* === IA PREDITIVA === */
 async function treinarIA(v){
   if(v.length<30)return;
   const xs=[],ys=[];
@@ -306,33 +398,92 @@ function mostrarProb(model,v,previsoes){
  });
 }
 
-/* Chat */
+/* === BOTÃO DICAS IA === */
+const btnDicas=document.createElement("div");
+btnDicas.className="footer-btn";
+btnDicas.id="btnDicas";
+btnDicas.innerHTML=`<span>💡</span>Dicas IA`;
+document.querySelector("footer").appendChild(btnDicas);
+
+const dicasWindow=document.getElementById("dicasWindow");
+const closeDicas=document.getElementById("closeDicas");
+const dicasContent=document.getElementById("dicasContent");
+btnDicas.onclick=()=>{dicasWindow.style.display="flex";dicasWindow.style.flexDirection="column";};
+closeDicas.onclick=()=>dicasWindow.style.display="none";
+function adicionarDicaIA(texto){
+  const dica=document.createElement("div");
+  dica.className="dicaCard";
+  dica.innerHTML=texto;
+  dicasContent.appendChild(dica);
+  dicasContent.scrollTop=dicasContent.scrollHeight;
+}
+
+/* === ANALISTA REATIVA === */
+let ultimoComentario="";
+function interpretarResultado(novoValor,historico){
+  if(historico.length<5)return null;
+  const ultimos5=historico.slice(-5);
+  const media5=(ultimos5.reduce((a,b)=>a+b,0)/ultimos5.length).toFixed(2);
+  const tendencia=novoValor>media5?"alta":novoValor<2?"baixa":"neutra";
+  const sequenciaAlta=ultimos5.every(v=>v>=3);
+  const sequenciaBaixa=ultimos5.every(v=>v<2);
+  let comentario="";
+  if(sequenciaAlta)comentario=`📈 Mercado aquecido — sequência de altas acima de 3x (média ${media5}x).`;
+  else if(sequenciaBaixa)comentario=`⚠️ Tendência de queda — sequência de baixas abaixo de 2x (média ${media5}x).`;
+  else if(novoValor>10)comentario=`💥 Pico de ${novoValor.toFixed(2)}x detectado — possível correção nas próximas rodadas.`;
+  else if(tendencia==="alta")comentario=`📊 Vela ${novoValor.toFixed(2)}x — acima da média (${media5}x). Indício de retomada.`;
+  else if(tendencia==="baixa")comentario=`📉 Vela ${novoValor.toFixed(2)}x — abaixo da média (${media5}x). Perda de força momentânea.`;
+  else comentario=`⚖️ Mercado estável (${novoValor.toFixed(2)}x). Mantendo padrão lateral.`;
+  if(comentario!==ultimoComentario){
+    ultimoComentario=comentario;
+    exibirComentarioPainel(comentario);
+    adicionarDicaIA(comentario);
+  }
+}
+function exibirComentarioPainel(texto){
+  let painelComentario=document.getElementById("comentarioPainelIA");
+  if(!painelComentario){
+    painelComentario=document.createElement("div");
+    painelComentario.id="comentarioPainelIA";
+    painelComentario.style="margin-top:10px;background:rgba(0,0,0,0.6);border-radius:10px;padding:10px;font-size:14px;line-height:1.4;box-shadow:0 0 10px rgba(0,229,255,0.2);color:#00e5ff;";
+    document.getElementById("iaContainer").appendChild(painelComentario);
+  }
+  painelComentario.innerHTML=texto;
+}
+
+/* === INTEGRAÇÃO AUTOMÁTICA COM FIREBASE (CORRIGIDA) === */
+let ultimoTimestamp = null;
+
+db.collection("historico")
+  .orderBy("timestamp", "desc")
+  .limit(50)
+  .onSnapshot((snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const d = change.doc.data();
+        const novoValor = parseFloat(d.valor || d.resultado || "0");
+        const ts = d.timestamp ? d.timestamp.toMillis() : Date.now();
+
+        // Evita repetir o mesmo resultado
+        if (!ultimoTimestamp || ts !== ultimoTimestamp) {
+          ultimoTimestamp = ts;
+          interpretarResultado(novoValor, historicoCache);
+        }
+      }
+    });
+  });
+
+/* === CHAT IA === */
 const chatWindow=document.getElementById("chatWindow"),
 chatInput=document.getElementById("chatInput"),
 chatSend=document.getElementById("chatSend"),
 chatMessages=document.getElementById("chatMessages"),
 closeChat=document.getElementById("closeChat"),
 clearChat=document.getElementById("clearChat");
-
-let contextHistory=[]; // memória curta das últimas conversas
-
 closeChat.onclick=()=>{chatWindow.style.display="none";};
-clearChat.onclick=()=>{chatMessages.innerHTML="";localStorage.removeItem("chatHistory");contextHistory=[];};
+clearChat.onclick=()=>{chatMessages.innerHTML="";localStorage.removeItem("chatHistory");};
 chatSend.onclick=()=>sendMsg();
 chatInput.addEventListener("keypress",e=>{if(e.key==="Enter")sendMsg();});
-
-// atalhos rápidos
-const quickBtns=document.createElement("div");
-quickBtns.style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;padding:6px;background:rgba(0,0,0,0.3);border-top:1px solid #00e5ff;";
-["📊 Média","📈 Último","🔥 Tendência","💡 Recomendar"].forEach(txt=>{
-  const b=document.createElement("button");
-  b.textContent=txt;
-  b.style="background:#00e5ff;border:none;border-radius:8px;padding:6px 10px;font-weight:bold;color:#000;cursor:pointer;";
-  b.onclick=()=>{chatInput.value=txt;sendMsg();};
-  quickBtns.appendChild(b);
-});
-chatWindow.appendChild(quickBtns);
-
 function sendMsg(){
   const t=chatInput.value.trim();
   if(!t)return;
@@ -345,25 +496,22 @@ function sendMsg(){
     typeBotMsg(r);
   },800+Math.random()*700);
 }
-
-/* === Mensagens visuais === */
 function addUserMsg(t){
-  const wrap=document.createElement("div");
-  wrap.className="msg user";
-  wrap.innerHTML=`<span style='font-size:12px;opacity:0.8'>🧍</span> ${t}`;
-  chatMessages.appendChild(wrap);
+  const d=document.createElement("div");
+  d.className="msg user";
+  d.textContent=t;
+  chatMessages.appendChild(d);
   chatMessages.scrollTop=chatMessages.scrollHeight;
   saveHistory();
 }
 function typeBotMsg(text){
   const wrap=document.createElement("div");
   wrap.className="msg bot";
-  wrap.innerHTML=`<span style='font-size:12px;opacity:0.8'>🤖</span> `;
   chatMessages.appendChild(wrap);
   chatMessages.scrollTop=chatMessages.scrollHeight;
   let i=0;
   const interval=setInterval(()=>{
-    wrap.innerHTML=`<span style='font-size:12px;opacity:0.8'>🤖</span> `+text.slice(0,i);
+    wrap.textContent=text.slice(0,i);
     chatMessages.scrollTop=chatMessages.scrollHeight;
     i++;
     if(i>text.length){clearInterval(interval);saveHistory();}
@@ -381,42 +529,21 @@ function removeBotTyping(){
   const t=document.getElementById("typing");
   if(t)t.remove();
 }
-
-/* === IA com contexto e análise real === */
 function gerarRespostaIA(q){
   const u=historicoCache[historicoCache.length-1]||0;
   const m=(historicoCache.reduce((a,b)=>a+b,0)/(historicoCache.length||1)).toFixed(2);
   const tendencia=u>m?"alta":u<2?"baixa":"neutra";
   const recomendacao=document.getElementById("recomendacao")?document.getElementById("recomendacao").innerText:"Analisando mercado...";
-  contextHistory.push(q.toLowerCase());
-  if(contextHistory.length>4)contextHistory.shift(); // mantém contexto curto
-
   q=q.toLowerCase();
-  if(q.includes("média")) return `📊 A média atual é ${m}x. ${tendencia==="alta"?"O mercado está aquecido 🔥":"Sem direção forte no momento."}`;
-  if(q.includes("último")) return `📈 O último resultado foi ${u.toFixed(2)}x (${u>m?"acima":"abaixo"} da média).`;
-  if(q.includes("tendência")) return tendencia==="alta"?"🔥 Alta clara, sequência positiva provável!":
-                                tendencia==="baixa"?"❄️ Baixa predominante, aguarde reversão.":"⚖️ Mercado neutro no momento.";
-  if(q.includes("recomendar")||q.includes("entrar")) return recomendacao;
-  if(q.includes("oi")||q.includes("olá")||q.includes("fala")) return "👋 E aí, piloto! Pergunta sobre média, tendência ou se é hora de entrar!";
-  if(q.includes("ajuda")) return "🧠 Posso te dar médias, últimas velas, previsões ou tendências. Manda ver!";
-  if(q.includes("agora")||q.includes("momento")||q.includes("situação"))
-    return `📈 Agora temos média ${m}x e último ${u}x. Tendência ${tendencia==="alta"?"positiva 🔥":"ainda indefinida."}`;
-  if(contextHistory.some(x=>x.includes("tendência")) && tendencia==="alta")
-    return "📈 Continua forte, parece uma boa sequência de alta ainda!";
-  return `🤖 Analisando histórico: média ${m}x, último ${u}x → tendência ${tendencia}. ${tendencia==="alta"?"🔥 Pode haver oportunidade nas próximas entradas!":"Aguarde o próximo sinal."}`;
+  if(q.includes("média"))return`📊 Média atual ${m}x (${tendencia}).`;
+  if(q.includes("último"))return`📈 Último resultado ${u.toFixed(2)}x (${u>m?"acima":"abaixo"} da média).`;
+  if(q.includes("tendência"))return tendencia==="alta"?"🔥 Alta em curso!":"⚖️ Padrão lateral, aguarde.";
+  if(q.includes("recomendar")||q.includes("entrar"))return recomendacao;
+  if(q.includes("ajuda"))return"🧠 Posso te informar médias, tendências e previsões. Pergunte!";
+  return`🤖 Média ${m}x, último ${u}x, tendência ${tendencia}.`;
 }
-
-/* === Salvamento === */
-function saveHistory(){
-  try{localStorage.setItem("chatHistory",chatMessages.innerHTML);}
-  catch{localStorage.removeItem("chatHistory");}
-}
-window.onload=()=>{
-  try{
-    const s=localStorage.getItem("chatHistory");
-    if(s)chatMessages.innerHTML=s;
-  }catch{}
-};
+function saveHistory(){try{localStorage.setItem("chatHistory",chatMessages.innerHTML);}catch{localStorage.removeItem("chatHistory");}}
+window.onload=()=>{try{const s=localStorage.getItem("chatHistory");if(s)chatMessages.innerHTML=s;}catch{}};
 </script>
 </body>
 </html>
