@@ -67,7 +67,7 @@ def verificar_webhook():
 
 
 # ======================================================
-# RECEBER MENSAGENS DO WHATSAPP (POST)
+# RECEBER MENSAGENS DO WHATSAPP
 # ======================================================
 @app.route('/webhook', methods=['POST'])
 def receber_mensagem():
@@ -82,28 +82,24 @@ def receber_mensagem():
 
         if messages:
             msg = messages[0]
-            numero = msg["from"]  # Ex: "5511987654321"
+            numero = msg["from"]
+            texto = msg["text"]["body"] if "text" in msg else ""
 
-            # ---- SALVAR CONTATO ----
-            db.collection("contatos").document(numero).set({
-                "numero": numero
-            }, merge=True)
+            # SALVAR EM chats/
+            db.collection("chats").document(numero).set({"numero": numero}, merge=True)
 
-            # ---- SALVAR MENSAGEM ----
-            if "text" in msg:
-                texto = msg["text"]["body"]
+            db.collection("chats").document(numero).collection("mensagens").add({
+                "mensagem": texto,
+                "remetente": "cliente",
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
 
-                db.collection("contatos").document(numero).collection("mensagens").add({
-                    "de": numero,
-                    "texto": texto
-                })
+            print(f"📲 De: {numero} | 💬 {texto}")
 
-                print(f"📲 De: {numero} | 💬 {texto}")
-
-                enviar_whatsapp(numero, "Recebi sua mensagem, obrigado! 🔥")
+            enviar_whatsapp(numero, "Recebi sua mensagem, obrigado! 🔥")
 
     except Exception as e:
-        print("❌ ERRO ao processar:", e)
+        print("❌ ERRO:", e)
 
     return jsonify({"status": "recebido"}), 200
 
@@ -126,12 +122,11 @@ def enviar_whatsapp(destino, mensagem):
     }
 
     r = requests.post(url, json=payload, headers=headers)
-
-    print("📤 Resposta do WhatsApp:", r.text)
+    print("📤 Enviada:", r.text)
 
 
 # ======================================================
-# ROTA: ROBÔ LOCAL ENVIA SINAL
+# ENVIAR SINAL PARA TODOS (ROBÔ LOCAL)
 # ======================================================
 @app.route('/enviar_sinal', methods=['POST'])
 def enviar_sinal():
@@ -141,39 +136,70 @@ def enviar_sinal():
     if not resultado:
         return jsonify({"erro": "resultado obrigatório"}), 400
 
-    print(f"\n🚀 Recebi sinal do robô local: {resultado}")
+    print(f"\n🚀 Novo sinal: {resultado}")
 
-    # Buscar todos os contatos registrados
-    contatos = db.collection("contatos").stream()
-
+    contatos = db.collection("chats").stream()
     enviados = 0
 
     for c in contatos:
         numero = c.id
-        enviar_whatsapp(numero, f"📊 NOVO SINAL DETECTADO: {resultado}x")
-        enviados += 1
 
-    print(f"🔥 Sinal enviado para {enviados} contatos!")
+        msg = f"📊 NOVO SINAL DETECTADO: {resultado}x"
+        enviar_whatsapp(numero, msg)
+
+        # salvar na conversa
+        db.collection("chats").document(numero).collection("mensagens").add({
+            "mensagem": msg,
+            "remetente": "bot",
+            "timestamp": firestore.SERVER_TIMESTAMP
+        })
+
+        enviados += 1
 
     return jsonify({"status": "ok", "enviados": enviados}), 200
 
 
 # ======================================================
-# ROTA: LISTAR MENSAGENS PARA O PAINEL
+# PAINEL: ENVIAR MENSAGEM MANUAL
+# ======================================================
+@app.route('/enviar', methods=['POST'])
+def enviar_manual():
+    data = request.get_json()
+    numero = data.get("numero")
+    mensagem = data.get("mensagem")
+
+    if not numero or not mensagem:
+        return jsonify({"erro": "dados faltando"}), 400
+
+    enviar_whatsapp(numero, mensagem)
+
+    # salvar no histórico
+    db.collection("chats").document(numero).collection("mensagens").add({
+        "mensagem": mensagem,
+        "remetente": "bot",
+        "timestamp": firestore.SERVER_TIMESTAMP
+    })
+
+    return jsonify({"status": "enviado"}), 200
+
+
+# ======================================================
+# PAINEL: LISTAR TODAS CONVERSAS
 # ======================================================
 @app.route('/mensagens')
 def listar_mensagens():
-    contatos_ref = db.collection("contatos").stream()
 
+    chats = db.collection("chats").stream()
     dados = {}
 
-    for contato in contatos_ref:
+    for contato in chats:
         numero = contato.id
         mensagens = []
 
-        msgs_ref = db.collection("contatos").document(numero).collection("mensagens").stream()
+        msgs = db.collection("chats").document(numero).collection("mensagens")\
+                .order_by("timestamp").stream()
 
-        for m in msgs_ref:
+        for m in msgs:
             mensagens.append(m.to_dict())
 
         dados[numero] = mensagens
