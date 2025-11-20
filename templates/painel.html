@@ -156,10 +156,14 @@ async function carregarConversas() {
 // ================================
 // ABRIR CONVERSA
 // ================================
-function abrirConversa(numero, mensagens) {
+async function abrirConversa(numero) {
     conversaAtual = numero;
 
     document.getElementById("chat-title").textContent = numero;
+
+    const res = await fetch("/mensagens");
+    const dados = await res.json();
+    const mensagens = dados[numero] || [];
 
     const box = document.getElementById("chat-mensagens");
     box.innerHTML = "";
@@ -168,12 +172,13 @@ function abrirConversa(numero, mensagens) {
         const div = document.createElement("div");
         div.classList.add("msg");
         div.classList.add(m.remetente === "cliente" ? "msg-cliente" : "msg-bot");
-        div.textContent = m.texto || m.mensagem;
+        div.textContent = m.mensagem || m.texto || "(sem texto)";
         box.appendChild(div);
     });
 
     box.scrollTop = box.scrollHeight;
 }
+
 
 // ================================
 // ENVIAR MENSAGEM DO PAINEL
