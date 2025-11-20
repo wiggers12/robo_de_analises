@@ -83,11 +83,26 @@ def receber_mensagem():
         if messages:
             msg = messages[0]
             numero = msg["from"]
-            texto = msg["text"]["body"] if "text" in msg else ""
 
-            # SALVAR EM chats/
-            db.collection("chats").document(numero).set({"numero": numero}, merge=True)
+            # identificar texto em QUALQUER estrutura
+            texto = None
+            
+            if "text" in msg and "body" in msg["text"]:
+                texto = msg["text"]["body"]
+            elif msg.get("type") == "text" and "text" in msg and "body" in msg["text"]:
+                texto = msg["text"]["body"]
+            elif "message" in msg:
+                texto = msg["message"].get("body")
 
+            if not texto:
+                texto = "(mensagem sem texto)"
+
+            # >>> salvar número
+            db.collection("chats").document(numero).set({
+                "numero": numero
+            }, merge=True)
+
+            # >>> salvar mensagem
             db.collection("chats").document(numero).collection("mensagens").add({
                 "mensagem": texto,
                 "remetente": "cliente",
@@ -96,6 +111,7 @@ def receber_mensagem():
 
             print(f"📲 De: {numero} | 💬 {texto}")
 
+            # responder
             enviar_whatsapp(numero, "Recebi sua mensagem, obrigado! 🔥")
 
     except Exception as e:
