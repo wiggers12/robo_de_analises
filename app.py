@@ -7,17 +7,17 @@ import os
 
 app = Flask(__name__)
 
-# =======================================
+# ===========================================================
 # CONFIG WHATSAPP API
-# =======================================
+# ===========================================================
 WHATSAPP_TOKEN = "EAALl2GJDMpMBPZBu8NmFIjWvqIDKJh4B1QlNsmG7n557ffCdCnNeXZBg1bR2bGFWo1CNZCXL5jiYXpfPZCZC8ZBGMbWUXw7vx4HykAPZBJ4bWczUa8ZClwKrPbCZBXgkW9DMemDkIqqCVO7BFNkoxZBjQu7nLQIkCUmu17J9zG8ZA5fgRX5RaK4ORLEdcYOo7vuRH1DZCwZDZD"
 PHONE_ID = "848088375057819"
 VERIFY_TOKEN = "meu_token_webhook"
 
 
-# =======================================
+# ===========================================================
 # FIREBASE ADMIN
-# =======================================
+# ===========================================================
 try:
     firebase_key = os.environ.get("FIREBASE_KEY")
 
@@ -35,25 +35,28 @@ except Exception as e:
     db = None
 
 
-# =======================================
-# HOME (JOGO)
-# =======================================
+
+# ===========================================================
+# ROTA HOME (SEU JOGO)
+# ===========================================================
 @app.route('/')
 def home():
     return render_template('index.html')
 
 
-# =======================================
-# PAINEL ADMIN SECRETO
-# =======================================
+
+# ===========================================================
+# ROTA PAINEL SECRETO
+# ===========================================================
 @app.route('/admin')
 def admin():
     return render_template('painel.html')
 
 
-# =======================================
-# VERIFICAÇÃO DO WEBHOOK (GET)
-# =======================================
+
+# ===========================================================
+# WEBHOOK VERIFICAÇÃO (GET)
+# ===========================================================
 @app.route('/webhook', methods=['GET'])
 def verificar_webhook():
     mode = request.args.get("hub.mode")
@@ -61,19 +64,20 @@ def verificar_webhook():
     challenge = request.args.get("hub.challenge")
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        return challenge, 200
+        return challenge, 200    
 
     return "Erro de verificação", 403
 
 
-# ======================================================
-# RECEBER MENSAGENS DO WHATSAPP
-# ======================================================
+
+# ===========================================================
+# RECEBER MENSAGENS WHATSAPP
+# ===========================================================
 @app.route('/webhook', methods=['POST'])
 def receber_mensagem():
     data = request.get_json()
 
-    print("\n📩 MENSAGEM RECEBIDA ==================")
+    print("\n📩 JSON RECEBIDO =====================")
     print(json.dumps(data, indent=4))
 
     try:
@@ -84,29 +88,35 @@ def receber_mensagem():
             msg = messages[0]
             numero = msg["from"]
 
-            # identificar texto em QUALQUER estrutura
+            # =======================================================
+            # EXTRAIR TEXTO EM QUALQUER FORMATO DA API META
+            # =======================================================
             texto = None
-            
-           # identificar texto em QUALQUER estrutura
-texto = None
-            
-if "text" in msg and "body" in msg["text"]:
-    texto = msg["text"]["body"]
-elif msg.get("type") == "text" and "text" in msg and "body" in msg["text"]:
-    texto = msg["text"]["body"]
-elif "message" in msg:
-    texto = msg["message"].get("body")
 
-if not texto:
-    texto = "(mensagem sem texto)"
+            # formato comum
+            if msg.get("type") == "text" and msg.get("text", {}).get("body"):
+                texto = msg["text"]["body"]
 
+            elif "text" in msg and "body" in msg["text"]:
+                texto = msg["text"]["body"]
 
-            # >>> salvar número
+            # formato encapsulado
+            elif "message" in msg and isinstance(msg["message"], dict):
+                inner = msg["message"]
+                if "body" in inner:
+                    texto = inner["body"]
+
+            # ultra fallback
+            if not texto:
+                texto = "(mensagem sem texto)"
+
+            # =======================================================
+            # SALVAR NO FIRESTORE
+            # =======================================================
             db.collection("chats").document(numero).set({
                 "numero": numero
             }, merge=True)
 
-            # >>> salvar mensagem
             db.collection("chats").document(numero).collection("mensagens").add({
                 "mensagem": texto,
                 "remetente": "cliente",
@@ -115,18 +125,21 @@ if not texto:
 
             print(f"📲 De: {numero} | 💬 {texto}")
 
-            # responder
+            # =======================================================
+            # RESPONDER AUTOMATICAMENTE
+            # =======================================================
             enviar_whatsapp(numero, "Recebi sua mensagem, obrigado! 🔥")
 
     except Exception as e:
-        print("❌ ERRO:", e)
+        print("❌ ERRO AO PROCESSAR:", e)
 
     return jsonify({"status": "recebido"}), 200
 
 
-# ======================================================
+
+# ===========================================================
 # FUNÇÃO ENVIAR MENSAGEM WHATSAPP
-# ======================================================
+# ===========================================================
 def enviar_whatsapp(destino, mensagem):
     url = f"https://graph.facebook.com/v19.0/{PHONE_ID}/messages"
 
@@ -142,12 +155,13 @@ def enviar_whatsapp(destino, mensagem):
     }
 
     r = requests.post(url, json=payload, headers=headers)
-    print("📤 Enviada:", r.text)
+    print("📤 RESPOSTA WHATSAPP:", r.text)
 
 
-# ======================================================
-# ENVIAR SINAL PARA TODOS (ROBÔ LOCAL)
-# ======================================================
+
+# ===========================================================
+# ROBÔ LOCAL ENVIA SINAL (AVIATOR)
+# ===========================================================
 @app.route('/enviar_sinal', methods=['POST'])
 def enviar_sinal():
     data = request.get_json()
@@ -156,7 +170,7 @@ def enviar_sinal():
     if not resultado:
         return jsonify({"erro": "resultado obrigatório"}), 400
 
-    print(f"\n🚀 Novo sinal: {resultado}")
+    print(f"\n🚀 SINAL DO ROBÔ LOCAL: {resultado}")
 
     contatos = db.collection("chats").stream()
     enviados = 0
@@ -167,7 +181,6 @@ def enviar_sinal():
         msg = f"📊 NOVO SINAL DETECTADO: {resultado}x"
         enviar_whatsapp(numero, msg)
 
-        # salvar na conversa
         db.collection("chats").document(numero).collection("mensagens").add({
             "mensagem": msg,
             "remetente": "bot",
@@ -179,9 +192,10 @@ def enviar_sinal():
     return jsonify({"status": "ok", "enviados": enviados}), 200
 
 
-# ======================================================
-# PAINEL: ENVIAR MENSAGEM MANUAL
-# ======================================================
+
+# ===========================================================
+# ENVIAR MANUAL DO PAINEL
+# ===========================================================
 @app.route('/enviar', methods=['POST'])
 def enviar_manual():
     data = request.get_json()
@@ -193,7 +207,6 @@ def enviar_manual():
 
     enviar_whatsapp(numero, mensagem)
 
-    # salvar no histórico
     db.collection("chats").document(numero).collection("mensagens").add({
         "mensagem": mensagem,
         "remetente": "bot",
@@ -203,12 +216,12 @@ def enviar_manual():
     return jsonify({"status": "enviado"}), 200
 
 
-# ======================================================
-# PAINEL: LISTAR TODAS CONVERSAS
-# ======================================================
+
+# ===========================================================
+# LISTAR TODAS CONVERSAS PARA O PAINEL
+# ===========================================================
 @app.route('/mensagens')
 def listar_mensagens():
-
     chats = db.collection("chats").stream()
     dados = {}
 
@@ -216,8 +229,8 @@ def listar_mensagens():
         numero = contato.id
         mensagens = []
 
-        msgs = db.collection("chats").document(numero).collection("mensagens")\
-                .order_by("timestamp").stream()
+        msgs = db.collection("chats").document(numero).collection("mensagens") \
+            .order_by("timestamp").stream()
 
         for m in msgs:
             mensagens.append(m.to_dict())
@@ -227,9 +240,10 @@ def listar_mensagens():
     return jsonify(dados)
 
 
-# =======================================
-# START SERVIDOR
-# =======================================
+
+# ===========================================================
+# START DO SERVIDOR
+# ===========================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
