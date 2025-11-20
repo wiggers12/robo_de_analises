@@ -87,15 +87,19 @@ def receber_mensagem():
             # identificar texto em QUALQUER estrutura
             texto = None
             
-            if "text" in msg and "body" in msg["text"]:
-                texto = msg["text"]["body"]
-            elif msg.get("type") == "text" and "text" in msg and "body" in msg["text"]:
-                texto = msg["text"]["body"]
-            elif "message" in msg:
-                texto = msg["message"].get("body")
+           # identificar texto em QUALQUER estrutura
+texto = None
+            
+if "text" in msg and "body" in msg["text"]:
+    texto = msg["text"]["body"]
+elif msg.get("type") == "text" and "text" in msg and "body" in msg["text"]:
+    texto = msg["text"]["body"]
+elif "message" in msg:
+    texto = msg["message"].get("body")
 
-            if not texto:
-                texto = "(mensagem sem texto)"
+if not texto:
+    texto = "(mensagem sem texto)"
+
 
             # >>> salvar número
             db.collection("chats").document(numero).set({
