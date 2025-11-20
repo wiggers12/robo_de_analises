@@ -11,12 +11,18 @@ PHONE_ID = "848088375057819"
 VERIFY_TOKEN = "meu_token_webhook"
 
 # ==========================
-# HOME
+# HOME (JOGO)
 # ==========================
 @app.route('/')
 def home():
     return render_template('index.html')
 
+# ==========================
+# PAINEL ADMIN SECRETO
+# ==========================
+@app.route('/admin')
+def admin():
+    return render_template('painel.html')
 
 # ==========================
 # VERIFICAÇÃO DO WEBHOOK (GET)
