@@ -132,6 +132,9 @@ body {
 </div>
 
 <script>
+
+let conversaAtual = null;  // <<<<<< AQUI ESTÁ A LINHA QUE FALTAVA !!!
+
 // ================================
 // LISTAR CONVERSAS
 // ================================
@@ -147,7 +150,7 @@ async function carregarConversas() {
         div.classList.add("conversa-item");
         div.textContent = numero;
 
-        div.onclick = () => abrirConversa(numero, dados[numero]);
+        div.onclick = () => abrirConversa(numero);
 
         lista.appendChild(div);
     });
@@ -196,7 +199,7 @@ document.getElementById("btn-enviar").onclick = async () => {
 
     document.getElementById("input-msg").value = "";
 
-    carregarConversas();
+    abrirConversa(conversaAtual);
 };
 
 carregarConversas();
