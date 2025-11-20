@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel de Conversas - WhatsApp API</title>
+
+<!-- ====================== CSS ESTILO WHATSAPP ====================== -->
+<style>
+body {
+    margin: 0;
+    background: #e5ddd5;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 30%;
+    background: #fff;
+    border-right: 1px solid #ccc;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    background: #075E54;
+    color: white;
+    padding: 15px;
+    margin: 0;
+}
+
+.conversa-item {
+    padding: 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.conversa-item:hover {
+    background: #f0f0f0;
+    transition: .2s;
+}
+
+/* Chat */
+.chat-window {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    background: #075E54;
+    padding: 15px;
+    color: white;
+}
+
+.chat-mensagens {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: #e5ddd5;
+}
+
+.msg {
+    padding: 10px;
+    margin: 10px 0;
+    max-width: 70%;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.msg-cliente {
+    background: #fff;
+    align-self: flex-start;
+}
+
+.msg-bot {
+    background: #DCF8C6;
+    align-self: flex-end;
+}
+
+.chat-input {
+    display: flex;
+    padding: 10px;
+    background: #fff;
+    border-top: 1px solid #ccc;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+}
+
+.chat-input button {
+    background: #25D366;
+    padding: 10px 15px;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ====================== LAYOUT PRINCIPAL ====================== -->
+<div class="container">
+
+    <!-- Lista de conversas -->
+    <div class="sidebar">
+        <h2>Conversas</h2>
+        <div id="lista-conversas"></div>
+    </div>
+
+    <!-- Janela de chat -->
+    <div class="chat-window">
+        <div class="chat-header">
+            <h3 id="chat-title">Selecione uma conversa</h3>
+        </div>
+
+        <div id="chat-mensagens" class="chat-mensagens"></div>
+
+        <div class="chat-input">
+            <input type="text" id="input-msg" placeholder="Digite sua mensagem...">
+            <button id="btn-enviar">Enviar</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- ====================== FIREBASE ====================== -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<!-- ====================== JAVASCRIPT ====================== -->
+<script>
+// CONFIG FIREBASE
+const firebaseConfig = {
+    apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
+    authDomain: "robo-aviator2025.firebaseapp.com",
+    projectId: "robo-aviator2025",
+    storageBucket: "robo-aviator2025.firebasestorage.app",
+    messagingSenderId: "303072216239",
+    appId: "1:303072216239:web:d6e659c5dd49be14e7005a"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let conversaAtual = null;
+
+// ================================
+// LISTAR CONVERSAS (SIDEBAR)
+// ================================
+function carregarConversas() {
+    db.collection("chats").onSnapshot(snapshot => {
+        const lista = document.getElementById("lista-conversas");
+        lista.innerHTML = "";
+
+        snapshot.forEach(doc => {
+            const numero = doc.id;
+
+            const div = document.createElement("div");
+            div.classList.add("conversa-item");
+            div.textContent = numero;
+
+            div.onclick = () => abrirConversa(numero);
+
+            lista.appendChild(div);
+        });
+    });
+}
+
+carregarConversas();
+
+// ================================
+// ABRIR UMA CONVERSA
+// ================================
+function abrirConversa(numero) {
+    conversaAtual = numero;
+    document.getElementById("chat-title").textContent = numero;
+
+    const chatBox = document.getElementById("chat-mensagens");
+    chatBox.innerHTML = "";
+
+    db.collection("chats")
+        .doc(numero)
+        .collection("mensagens")
+        .orderBy("timestamp")
+        .onSnapshot(snapshot => {
+
+            chatBox.innerHTML = "";
+
+            snapshot.forEach(doc => {
+                const msg = doc.data();
+
+                const div = document.createElement("div");
+                div.classList.add("msg");
+                div.classList.add(msg.remetente === "cliente" ? "msg-cliente" : "msg-bot");
+
+                div.textContent = msg.mensagem;
+                chatBox.appendChild(div);
+            });
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+}
+
+// ================================
+// ENVIAR MENSAGEM PELO PAINEL
+// ================================
+document.getElementById("btn-enviar").onclick = enviarMensagem;
+
+function enviarMensagem() {
+    const texto = document.getElementById("input-msg").value;
+
+    if (!texto || !conversaAtual) return;
+
+    // Salvar no Firestore
+    db.collection("chats")
+        .doc(conversaAtual)
+        .collection("mensagens")
+        .add({
+            mensagem: texto,
+            remetente: "bot",
+            timestamp: Date.now()
+        });
+
+    // Enviar pelo backend
+    fetch("/enviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero: conversaAtual, mensagem: texto })
+    });
+
+    document.getElementById("input-msg").value = "";
+}
+</script>
+
+</body>
+</html>
