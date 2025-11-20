@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel de Conversas - WhatsApp API</title>
 
-<!-- ====================== CSS ESTILO WHATSAPP ====================== -->
 <style>
 body {
     margin: 0;
@@ -108,7 +107,6 @@ body {
 
 <body>
 
-<!-- ====================== LAYOUT PRINCIPAL ====================== -->
 <div class="container">
 
     <!-- Lista de conversas -->
@@ -133,113 +131,70 @@ body {
 
 </div>
 
-<!-- ====================== FIREBASE ====================== -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-<!-- ====================== JAVASCRIPT ====================== -->
 <script>
-// CONFIG FIREBASE
-const firebaseConfig = {
-    apiKey: "AIzaSyD-yt8AmgRkMnJH9xKwDSKn9_X42Cmpq7Y",
-    authDomain: "robo-aviator2025.firebaseapp.com",
-    projectId: "robo-aviator2025",
-    storageBucket: "robo-aviator2025.firebasestorage.app",
-    messagingSenderId: "303072216239",
-    appId: "1:303072216239:web:d6e659c5dd49be14e7005a"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-let conversaAtual = null;
-
 // ================================
-// LISTAR CONVERSAS (SIDEBAR)
+// LISTAR CONVERSAS
 // ================================
-function carregarConversas() {
-    db.collection("chats").onSnapshot(snapshot => {
-        const lista = document.getElementById("lista-conversas");
-        lista.innerHTML = "";
+async function carregarConversas() {
+    const res = await fetch("/mensagens");
+    const dados = await res.json();
 
-        snapshot.forEach(doc => {
-            const numero = doc.id;
+    const lista = document.getElementById("lista-conversas");
+    lista.innerHTML = "";
 
-            const div = document.createElement("div");
-            div.classList.add("conversa-item");
-            div.textContent = numero;
+    Object.keys(dados).forEach(numero => {
+        const div = document.createElement("div");
+        div.classList.add("conversa-item");
+        div.textContent = numero;
 
-            div.onclick = () => abrirConversa(numero);
+        div.onclick = () => abrirConversa(numero, dados[numero]);
 
-            lista.appendChild(div);
-        });
+        lista.appendChild(div);
     });
 }
 
-carregarConversas();
-
 // ================================
-// ABRIR UMA CONVERSA
+// ABRIR CONVERSA
 // ================================
-function abrirConversa(numero) {
+function abrirConversa(numero, mensagens) {
     conversaAtual = numero;
+
     document.getElementById("chat-title").textContent = numero;
 
-    const chatBox = document.getElementById("chat-mensagens");
-    chatBox.innerHTML = "";
+    const box = document.getElementById("chat-mensagens");
+    box.innerHTML = "";
 
-    db.collection("chats")
-        .doc(numero)
-        .collection("mensagens")
-        .orderBy("timestamp")
-        .onSnapshot(snapshot => {
+    mensagens.forEach(m => {
+        const div = document.createElement("div");
+        div.classList.add("msg");
+        div.classList.add(m.remetente === "cliente" ? "msg-cliente" : "msg-bot");
+        div.textContent = m.texto || m.mensagem;
+        box.appendChild(div);
+    });
 
-            chatBox.innerHTML = "";
-
-            snapshot.forEach(doc => {
-                const msg = doc.data();
-
-                const div = document.createElement("div");
-                div.classList.add("msg");
-                div.classList.add(msg.remetente === "cliente" ? "msg-cliente" : "msg-bot");
-
-                div.textContent = msg.mensagem;
-                chatBox.appendChild(div);
-            });
-
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
+    box.scrollTop = box.scrollHeight;
 }
 
 // ================================
-// ENVIAR MENSAGEM PELO PAINEL
+// ENVIAR MENSAGEM DO PAINEL
 // ================================
-document.getElementById("btn-enviar").onclick = enviarMensagem;
-
-function enviarMensagem() {
+document.getElementById("btn-enviar").onclick = async () => {
     const texto = document.getElementById("input-msg").value;
 
     if (!texto || !conversaAtual) return;
 
-    // Salvar no Firestore
-    db.collection("chats")
-        .doc(conversaAtual)
-        .collection("mensagens")
-        .add({
-            mensagem: texto,
-            remetente: "bot",
-            timestamp: Date.now()
-        });
-
-    // Enviar pelo backend
-    fetch("/enviar", {
+    await fetch("/enviar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ numero: conversaAtual, mensagem: texto })
     });
 
     document.getElementById("input-msg").value = "";
-}
+
+    carregarConversas();
+};
+
+carregarConversas();
 </script>
 
 </body>
